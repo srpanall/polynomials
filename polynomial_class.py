@@ -1,6 +1,21 @@
 import re
 
-poly_re = r'([+-]?\d?[A-Za-z]\^\d+)|([+-]?\d?[A-Za-z])|([+-]?\d?)'
+# deal with
+##the following issue with -1n
+##>>> p1 = string_to_poly("7n - 5n^4+6n^3")
+##>>> p1
+##-5n^4+6n^3+7n
+##>>> p2 = string_to_poly("3n^3-2n^4+8n")
+##>>> p2
+##-2n^4+3n^3+8n
+##>>> p1-p2
+##-3n^4+3n^3-1n
+
+##second issue>>> p3 = string_to_poly("35p^2+2p-24")
+##p3
+##5p^2+2p+5
+
+poly_re = r'([+-]?\d*[A-Za-z]\^\d+)|([+-]?\d*[A-Za-z])|([+-]?\d*)'
 
 poly_reg = re.compile(poly_re)
 term_reg = re.compile(r'[A-Za-z]\^')
@@ -40,13 +55,15 @@ class Polynomial():
 
     def __init__(self, variable, terms):
         self.variable = variable
-        self.terms = terms
+        self.terms = {deg: coeff for deg, coeff in terms.items()
+                      if coeff != 0 or deg == 0}
         self.degree = max(self.terms.keys())
+        self.leading_coeff = self.terms[self.degree]
 
     def term_formater(self, coeff, deg):
         term_out = str(coeff)
         if coeff == 1 and deg != 0:
-            term_out = "+" + term_out[1:]
+            term_out = "+"
         elif coeff > 0:
             term_out = '+' + term_out
         if deg == 0:
@@ -87,6 +104,27 @@ class Polynomial():
         return ''.join([self.term_formater(coeff, deg) for coeff, deg in
                         term_list]).lstrip('+')
 
+    def __floordiv__(self, other):
+        partial = self
+        new_terms = dict()
+        q_place = self.degree - other.degree
+        divisor_coeff = other.leading_coeff
+        while q_place >= 0:
+            q_factor = partial.leading_coeff / divisor_coeff
+            if int(q_factor) == q_factor:
+                q_factor = int(q_factor)
+            partial = partial - other * Polynomial(self.variable, {q_place: q_factor})
+            # print(partial.leading_coeff)
+            new_terms[q_place] = q_factor
+            q_place -= 1
+            # print(new_terms)
+            # print(partial)
+        return Polynomial(self.variable, new_terms)
+
+    def __mod__(self, other):
+        temp_q = self // other
+        return self - other * temp_q
+
 
 # poly = "-5x^2+3x+2"
 # p1 = string_to_poly(poly)
@@ -109,8 +147,27 @@ class Polynomial():
 # pds_t_2 = pds * 2
 # print(pds_t_2)
 
+
 p1 = string_to_poly("x+4")
 p2 = string_to_poly("2x^2-3x+5")
+p3 = string_to_poly('2x-11')
+# print(p1 * p2)
+# print(p1 * p1 * p1)
+# print(p1 * p1 * p1 // p1)
+# p3 = p1 * p1 * p1
+# print(p3.leading_coeff)
+# print(p3)
+# print(p2 // p1)
+# print(p2 % p1)
+# print(p1 + p3)
+# print(type(p3))
+# print(type(p3) is Polynomial)
+# print(p1.degree)
 
-print(p1*p2)
+p1 = Polynomial('x', {1: 1})
+p2 = Polynomial('x', {1: 2})
+print(p1 + p1)
+print(p2)
+p2 = p1 + p1
+print(p2.terms)
 
